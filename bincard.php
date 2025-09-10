@@ -1,10 +1,10 @@
-<?php 
-include "include/header.php";  
+<?php
+include "include/header.php";
 
-$sqlemployee="SELECT `idtbl_product`, `product_name` FROM `tbl_product` WHERE `status`=1";
-$resultemployee =$conn-> query($sqlemployee);
+$sqlemployee = "SELECT `idtbl_product`, `product_name` FROM `tbl_product` WHERE `status`=1";
+$resultemployee = $conn->query($sqlemployee);
 
-include "include/topnavbar.php"; 
+include "include/topnavbar.php";
 ?>
 <div id="layoutSidenav">
     <div id="layoutSidenav_nav">
@@ -41,12 +41,32 @@ include "include/topnavbar.php";
                                         <div class="col-3">
                                             <label class="small font-weight-bold text-dark">Item*</label>
                                             <div class="input-group input-group-sm">
-                                                <select class="form-control form-control-sm rounded-0"
-                                                    style="width: 100%;" name="item" id="item" required>
+                                                <select class="form-control form-control-sm rounded-0" name="item" id="item" required>
                                                     <option value="">Select</option>
+                                                    <?php if ($resultemployee->num_rows > 0) {
+                                                        while ($rowemployee = $resultemployee->fetch_assoc()) { ?>
+                                                            <option value="<?php echo $rowemployee['idtbl_product'] ?>"><?php echo $rowemployee['product_name']; ?></option>
+                                                    <?php }
+                                                    } ?>
                                                 </select>
+                                                <div class="input-group-append">
+                                                    <button class="btn btn-outline-dark rounded-0" type="button" id="formSearchBtn"><i class="fas fa-search"></i>&nbsp;Search</button>
+                                                </div>
+                                            </div>
+                                            <div class="col">&nbsp;</div>
+                                            <div class="input-group-append">
+                                                <button class="btn btn-outline-success rounded-0" type="button" id="binprint"><i class="fas fa-print"></i>&nbsp;Print BIN</button>
                                             </div>
                                         </div>
+                                        <div class="col-2">
+                                            <label class="small font-weight-bold text-dark">From Month*</label>
+                                            <input type="month" class="form-control form-control-sm" name="frommonth" id="frommonth" required>
+                                        </div>
+                                        <div class="col-2">
+                                            <label class="small font-weight-bold text-dark">To Month*</label>
+                                            <input type="month" class="form-control form-control-sm" name="tomonth" id="tomonth" required>
+                                        </div>
+
                                         <div class="col">&nbsp;</div>
                                     </div>
                                     <input type="submit" class="d-none" id="hidesubmit">
@@ -57,6 +77,7 @@ include "include/topnavbar.php";
                                 <div id="targetviewdetail"></div>
 
                             </div>
+
                         </div>
                     </div>
                 </div>
@@ -68,28 +89,7 @@ include "include/topnavbar.php";
 
 <?php include "include/footerscripts.php"; ?>
 <script>
-    $(document).ready(function () {
-
-        $("#item").select2({
-            ajax: {
-                url: "getprocess/getproductsforcustomerpo.php",
-                type: "post",
-                dataType: 'json',
-                delay: 250,
-                data: function (params) {
-                    return {
-                        searchTerm: params.term
-                    };
-                },
-                processResults: function (response) { // console.log(response)
-                    return {
-                        results: response
-                    };
-                },
-                cache: true
-            },
-        });
-
+    $(document).ready(function() {
         $('.dpd1a').datepicker('remove');
         $('.dpd1a').datepicker({
             uiLibrary: 'bootstrap4',
@@ -101,30 +101,66 @@ include "include/topnavbar.php";
             minViewMode: "months"
         });
 
+        $('#formSearchBtn').click(function() {
+            if (!$("#searchform")[0].checkValidity()) {
+                // If the form is invalid, submit it. The form won't actually submit;
+                // this will just cause the browser to display the native HTML5 error messages.
+                $("#hidesubmit").click();
+            } else {
+                var item = $('#item').val();
+                var frommonth = $('#frommonth').val();
+                var tomonth = $('#tomonth').val();
 
+                $.ajax({
+                    type: "POST",
+                    data: {
+                        item,
+                        frommonth,
+                        tomonth
+                    },
+                    url: 'getprocess/getbincard.php',
+                    success: function(result) {
+                        $('#targetviewdetail').html(result);
+                    }
+                });
 
-        $('#item').change(function () {
-            var item = $('#item').val();
+            }
+        });
 
-            $('#targetviewdetail').html(
-                '<div class="card border-0 shadow-none bg-transparent"><div class="card-body text-center"><img src="images/spinner.gif" alt="" srcset=""></div></div>'
-                );
-            $.ajax({
-                type: "POST",
-                data: {
-                    item: item
-                },
-                url: 'getprocess/getbincard.php',
-                success: function (result) { //alert(result);
-                    $('#targetviewdetail').html(result);
-                    invoiceviewoption();
+        $('#binprint').click(function() {
+            if (!$("#searchform")[0].checkValidity()) {
+                $("#hidesubmit").click();
+            } else {
+                var item = $('#item').val();
+                var frommonth = $('#frommonth').val();
+                var tomonth = $('#tomonth').val();
+
+                if (!item) {
+                    alert("Please select a product!");
+                    return;
                 }
-            });
-        })
+                if (!frommonth || !tomonth) {
+                    alert("Please select month range!");
+                    return;
+                }
+
+                // ✅ Now all values are passed correctly
+                window.open(
+                    'pdfprocess/bin_report.php?item=' + item +
+                    '&frommonth=' + frommonth +
+                    '&tomonth=' + tomonth,
+                    '_blank'
+                );
+            }
+        });
+
+
+
+
     });
 
     function invoiceviewoption() {
-        $('#tableoutstanding tbody').on('click', '.viewbtninv', function () {
+        $('#tableoutstanding tbody').on('click', '.viewbtninv', function() {
             var invID = $(this).attr('id');
 
             $('#viewinvoicedetail').html('<div class="text-center"><img src="images/spinner.gif"></div>');
@@ -136,7 +172,7 @@ include "include/topnavbar.php";
                     invID: invID
                 },
                 url: 'getprocess/getissueinvoiceinfo.php',
-                success: function (result) { //alert(result);
+                success: function(result) { //alert(result);
                     $('#viewinvoicedetail').html(result);
                 }
             });
