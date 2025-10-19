@@ -1,7 +1,7 @@
 <?php
 session_start();
 require_once('../connection/db.php');
-require_once '../vendor/autoload.php'; // Adjust the path as necessary
+require_once '../vendor/autoload.php';
 
 use Dompdf\Dompdf;
 use Dompdf\Options;
@@ -26,8 +26,45 @@ $totalpayment = 0;
 $net_total = 0;
 $newtemp = 0;
 
-$sqlinvoiceinfo = "SELECT `tbl_invoice`.`discount`, `tbl_invoice`.`idtbl_invoice`, `tbl_invoice`.`invoiceno`, `tbl_invoice`.`date`, `tbl_invoice`.`total`, `tbl_invoice`.`paymentcomplete`, `tbl_locations`.`idtbl_locations`, `tbl_locations`.`locationname`, `tbl_customer`.`name`, `tbl_customer`.`address`, `tbl_customer`.`phone`, `tbl_employee`.`name` AS `saleref`, `tbl_employee`.`phone` AS 'salesrepphone', `tbl_area`.`area`, `tbl_user`.`name` as `username`, `tbl_invoice`.`tbl_customer_idtbl_customer`, `tbl_customer_order`.`cuspono` FROM `tbl_invoice` LEFT JOIN `tbl_locations` ON `tbl_locations`.`idtbl_locations`=`tbl_invoice`.`tbl_locations_idtbl_locations` LEFT JOIN `tbl_customer` ON `tbl_customer`.`idtbl_customer`=`tbl_invoice`.`tbl_customer_idtbl_customer` LEFT JOIN `tbl_customer_order` ON `tbl_customer_order`.`idtbl_customer_order`=`tbl_invoice`.`tbl_customer_order_idtbl_customer_order` LEFT JOIN `tbl_employee` ON `tbl_employee`.`idtbl_employee`=`tbl_customer_order`.`tbl_employee_idtbl_employee` LEFT JOIN `tbl_area` ON `tbl_area`.`idtbl_area`=`tbl_invoice`.`tbl_area_idtbl_area` LEFT JOIN `tbl_user` ON `tbl_user`.`idtbl_user`=`tbl_invoice`.`tbl_user_idtbl_user`WHERE `tbl_invoice`.`status`=1 AND `tbl_invoice`.`idtbl_invoice`='$recordID'";
+$sqlinvoiceinfo = "
+SELECT 
+  `tbl_invoice`.`discount`, 
+  `tbl_invoice`.`idtbl_invoice`, 
+  `tbl_invoice`.`invoiceno`, 
+  `tbl_invoice`.`date`, 
+  `tbl_invoice`.`total`, 
+  `tbl_invoice`.`paymentcomplete`, 
+  `tbl_locations`.`idtbl_locations`, 
+  `tbl_locations`.`locationname`, 
+  `tbl_customer`.`name`, 
+  `tbl_customer`.`address`, 
+  `tbl_customer`.`phone`, 
+  `tbl_customer`.`vat_num`,
+  `tbl_employee`.`name` AS `saleref`, 
+  `tbl_employee`.`phone` AS 'salesrepphone', 
+  `tbl_area`.`area`, 
+  `tbl_user`.`name` as `username`, 
+  `tbl_invoice`.`tbl_customer_idtbl_customer`, 
+  `tbl_customer_order`.`cuspono` 
+FROM `tbl_invoice` 
+LEFT JOIN `tbl_locations` ON `tbl_locations`.`idtbl_locations`=`tbl_invoice`.`tbl_locations_idtbl_locations` 
+LEFT JOIN `tbl_customer` ON `tbl_customer`.`idtbl_customer`=`tbl_invoice`.`tbl_customer_idtbl_customer` 
+LEFT JOIN `tbl_customer_order` ON `tbl_customer_order`.`idtbl_customer_order`=`tbl_invoice`.`tbl_customer_order_idtbl_customer_order` 
+LEFT JOIN `tbl_employee` ON `tbl_employee`.`idtbl_employee`=`tbl_customer_order`.`tbl_employee_idtbl_employee` 
+LEFT JOIN `tbl_area` ON `tbl_area`.`idtbl_area`=`tbl_invoice`.`tbl_area_idtbl_area` 
+LEFT JOIN `tbl_user` ON `tbl_user`.`idtbl_user`=`tbl_invoice`.`tbl_user_idtbl_user`
+WHERE `tbl_invoice`.`status`=1 AND `tbl_invoice`.`idtbl_invoice`='$recordID'";
+
 $resultinvoiceinfo = $conn->query($sqlinvoiceinfo);
+
+if (!$resultinvoiceinfo) {
+    die("Database Error: " . $conn->error . "<br>Query: " . $sqlinvoiceinfo);
+}
+
+if ($resultinvoiceinfo->num_rows == 0) {
+    die("No invoice found with ID: " . $recordID);
+}
+
 $rowinvoiceinfo = $resultinvoiceinfo->fetch_assoc();
 
 $customerID = $rowinvoiceinfo['tbl_customer_idtbl_customer'];
@@ -37,175 +74,370 @@ $location = $rowinvoiceinfo['locationname'];
 $customeraddress = $rowinvoiceinfo['address'];
 $paymentcomplete = $rowinvoiceinfo['paymentcomplete'];
 $invoID = $rowinvoiceinfo['idtbl_invoice'];
-$invoiceno = $rowinvoiceinfo['invoiceno']; 
-$pono = $rowinvoiceinfo['cuspono']; 
-$salesrepphone = $rowinvoiceinfo['salesrepphone']; 
+$invoiceno = $rowinvoiceinfo['invoiceno'];
+$pono = $rowinvoiceinfo['cuspono'];
+$salesrepphone = $rowinvoiceinfo['salesrepphone'];
+$vat_num = isset($rowinvoiceinfo['vat_num']) ? trim($rowinvoiceinfo['vat_num']) : '';
 
+$isTaxCustomer = !empty($vat_num);
 
-// $sqlpoID = "SELECT `idtbl_porder_invoice` FROM `tbl_porder_invoice` WHERE `tbl_invoice_idtbl_invoice` = '$invoID'";
-// $resultpoID = $conn->query($sqlpoID);
-// $rowpoID = $resultpoID->fetch_assoc();
+$sqlinvoicedetail = "
+SELECT 
+  `tbl_product`.`product_name`, 
+  `tbl_product`.`product_code`, 
+  `tbl_product`.`idtbl_product`, 
+  `tbl_invoice_detail`.`qty`, 
+  `tbl_invoice_detail`.`saleprice`, 
+  `tbl_invoice_detail`.`discount` 
+FROM `tbl_invoice_detail` 
+LEFT JOIN `tbl_product` ON `tbl_product`.`idtbl_product`=`tbl_invoice_detail`.`tbl_product_idtbl_product` 
+WHERE `tbl_invoice_detail`.`tbl_invoice_idtbl_invoice`='$recordID' AND `tbl_invoice_detail`.`status`=1";
 
-$sqlinvoicedetail = "SELECT `tbl_product`.`product_name`, `tbl_product`.`product_code`, `tbl_product`.`idtbl_product`, `tbl_invoice_detail`.`qty`, `tbl_invoice_detail`.`saleprice`, `tbl_invoice_detail`.`discount` FROM `tbl_invoice_detail` LEFT JOIN `tbl_product` ON `tbl_product`.`idtbl_product`=`tbl_invoice_detail`.`tbl_product_idtbl_product` WHERE `tbl_invoice_detail`.`tbl_invoice_idtbl_invoice`='$recordID' AND `tbl_invoice_detail`.`status`=1";
 $resultinvoicedetail = $conn->query($sqlinvoicedetail);
 
-$sqlinvoiceoutstanding = "SELECT `tbl_employee`.`name` as `asm`, `tbl_invoice`.`idtbl_invoice`, `tbl_invoice`.`paymentcomplete`, `tbl_invoice`.`date`, `tbl_invoice`.`total`, SUM(`tbl_invoice_payment_has_tbl_invoice`.`payamount`) AS `payamount` FROM `tbl_invoice` LEFT JOIN `tbl_invoice_payment_has_tbl_invoice` ON `tbl_invoice_payment_has_tbl_invoice`.`tbl_invoice_idtbl_invoice`=`tbl_invoice`.`idtbl_invoice` LEFT JOIN `tbl_employee` ON `tbl_employee`.`idtbl_employee` = `tbl_invoice`.`ref_id` WHERE `tbl_invoice`.`tbl_customer_idtbl_customer`='$customerID' AND `tbl_invoice`.`status`=1 AND `tbl_invoice`.`paymentcomplete`=0 AND `tbl_invoice`.`payment_created` IN (0,1) AND `tbl_invoice`.`idtbl_invoice` != '$recordID' Group BY `tbl_invoice`.`idtbl_invoice`";
-$resultinvoiceoutstanding = $conn->query($sqlinvoiceoutstanding);
+if (!$resultinvoicedetail) {
+    die("Database Error: " . $conn->error . "<br>Query: " . $sqlinvoicedetail);
+}
 
-$sqlinvoicedetailfree = "SELECT `tbl_product`.`product_name`, `tbl_invoice_detail`.`freeqty` FROM `tbl_invoice_detail` LEFT JOIN `tbl_product` ON `tbl_product`.`idtbl_product`=`tbl_invoice_detail`.`freeproductid` WHERE `tbl_invoice_detail`.`tbl_invoice_idtbl_invoice`='$recordID' AND `tbl_invoice_detail`.`status`=1 AND `tbl_invoice_detail`.`freeqty`>0";
-$resultinvoicedetailfree = $conn->query($sqlinvoicedetailfree);
+// Get payment info for outstanding balance
+$sqlpayments = "SELECT SUM(amount) as total_paid FROM tbl_payment WHERE tbl_invoice_idtbl_invoice='$recordID' AND status=1";
+$resultpayments = $conn->query($sqlpayments);
+
+if ($resultpayments) {
+    $rowpayments = $resultpayments->fetch_assoc();
+    $totalpayment = $rowpayments['total_paid'] ?? 0;
+} else {
+    $totalpayment = 0;
+}
 
 $html = '
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>EVEREST Hardware Co</title>
-        <style>
-            *{
-                font-size: 10;
-                margin:0.2px;
-                font-family: \'San-Serif\', sans-serif;
-            }
-            header {
-                position: fixed;
-                top: 0cm;
-                left: 0cm;
-                right: 0cm;
-                height:6cm;
-            }
-            footer {
-                position: fixed; 
-                bottom: 0cm; 
-                left: 0cm; 
-                right: 0.3cm;
-                bottom: 7.1cm;
-            }
-            .leftboxtop{
-                width:10.5cm;
-                height:4.25cm;
-            }
-            .bottomtop{
-                width:2.5cm;
-            }
-            .righttop{
-                width:7.5cm;
-            }
-            .bottomtable{
-                height:13.5cm;
-            }
-            .divclass{
-                border-right:1px solid black;
-            }
-            .listView tr {
-                line-height: 1;
-            }
-        </style>
-    </head>
-    <body style="margin-top:7cm; margin-bottom:5cm; height:14cm">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>EVEREST Hardware Co - Tax Invoice</title>
+<style>
+    * { 
+        font-size: 9px; 
+        margin: 0; 
+        padding: 0;
+        font-family: Arial, sans-serif;
+    }
+    body {
+        margin: 0;
+        padding: 0.3cm;
+    }
+    .header-box {
+        background-color: #FF8C42;
+        padding: 0.3cm;
+        margin-bottom: 0.2cm;
+        border: 2px solid #000;
+    }
+    .company-name {
+        font-size: 20px;
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 0.1cm;
+    }
+    .company-info {
+        font-size: 8px;
+        text-align: center;
+    }
+    .customer-section {
+        border: 1px solid #000;
+        padding: 0.3cm;
+        min-height: 3cm;
+        float: left;
+        width: 55%;
+        margin-bottom: 0.2cm;
+        line-height: 1.6; 
+    }
 
-    <header>
-        <table border="0" width="100%">
-            <tr>
-                <td colspan="3" height="1.8cm"></td>
-            </tr>
-            <tr>
-                <td class="leftboxtop" width="10cm">
-                    <table border="0" width="100%" style="margin-top:-43; padding-left:0.3cm;">
-                        <tr>
-                            <td>Customer ID : ' . $customerID . '<br><span  style="font-size: 1.2em; font-weight: bold;">' . $customername . '</span><br>' . $customeraddress . '<br>Tel : ' . $customerPhone . '</td>
-                        </tr>
-                    </table>
-                </td>
-                <td width="3cm">&nbsp;</td>
-                <td>
-                    <table width="100%" height="100%" border="0">
-                        <tr><td width="55%" height="0.5cm"> </td><td align="left">' .  $rowinvoiceinfo['date'] . ' </td></tr>
-                        <tr><td height="0.5cm"></td> <td align="left">' . $invoiceno . '</td></tr>
-                        <tr><td height="0.5cm"></td> <td align="left">' . $pono . '</td></tr>
-                        <tr><td height="0.5cm"></td> <td align="left">'.$location.'</td></tr>
-                        <tr><td height="0.5cm"></td> <td align="left">' . $rowinvoiceinfo['saleref'] . '</td></tr>
-                        <tr><td height="0.5cm"></td> <td align="left">' . $salesrepphone . '</td></tr>
-                    </table>
-                </td>
-            </tr>
-        </table>
-    </header>
+    .invoice-details {
+        float: right;
+        width: 40%;
+        margin-bottom: 0.2cm;
+    }
+    .tax-invoice-label {
+        background-color: #FF8C42;
+        padding: 0.2cm;
+        text-align: center;
+        font-weight: bold;
+        font-size: 11px;
+        margin-bottom: 0.1cm;
+    }
+    .detail-row {
+        border: 1px solid #000;
+        padding: 0.1cm 0.2cm;
+        margin-bottom: 1px;
+        min-height: 0.5cm;
+        display: flex;
+        align-items: center;
+    }
+    .detail-label {
+        font-weight: bold;
+        width: 45%;
+    }
+    table.items {
+        width: 100%;
+        border-collapse: collapse;
+        clear: both;
+        margin-top: 0.2cm;
+    }
+    table.items th {
+        background-color: #FF8C42;
+        color: #000;
+        font-weight: bold;
+        padding: 0.15cm;
+        border: 1px solid #000;
+        font-size: 9px;
+    }
+    table.items td {
+        border: 1px solid #000;
+        padding: 0.1cm;
+        font-size: 8.5px;
+    }
+    .totals-section {
+        float: right;
+        width: 40%;
+        margin-top: 0.2cm;
+    }
+    .totals-row {
+        border: 1px solid #000;
+        padding: 0.1cm 0.2cm;
+        margin-bottom: 1px;
+        text-align: right;
+    }
+    .footer-notes {
+        clear: both;
+        margin-top: 0.3cm;
+        font-size: 7px;
+        line-height: 1.3;
+    }
+    .footer-notes div {
+        margin-bottom: 0.1cm;
+    }
+    .signature-section {
+        margin-top: 0.5cm;
+        border-top: 2px solid #FF8C42;
+        padding-top: 0.3cm;
+        clear: both;
+        padding-left: 0.5cm;
+        padding-right: 0.5cm;
+    }
+    .signature-box {
+        width: 31%;
+        float: left;
+        text-align: center;
+        padding: 0.2cm;
+        margin: 0 1%;
+    }
+    .signature-box:first-of-type {
+        margin-left: 0;
+    }
+    .signature-box:last-of-type {
+        margin-right: 0;
+        padding-right: 0;
+    }
+    .signature-line {
+        border-bottom: 1px solid #333;
+        height: 1.2cm;
+        margin-bottom: 0.2cm;
+    }
+    .signature-label {
+        font-weight: bold;
+        font-size: 9px;
+        color: #FF6B35;
+    }
+    .signature-sublabel {
+        font-size: 7px;
+        color: #666;
+        margin-top: 0.05cm;
+    }
+    .balance-section {
+        background-color: #FFF3CD;
+        border: 1px solid #000;
+        padding: 0.2cm;
+        margin-top: 0.2cm;
+        text-align: center;
+    }
+    .watermark {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) rotate(-45deg);
+        font-size: 72px;
+        color: rgba(255, 140, 66, 0.1);
+        font-weight: bold;
+        z-index: -1;
+    }
+</style>
+</head>
+<body>
+<div class="watermark">EVEREST</div>
+<div class="header-box">
+    <div class="company-name">EVEREST HARDWARE CO. (PVT) LTD</div>
+    <div class="company-info">
+        # 363/10/01, Malwatta, Katubedda (Moratuwa), Sri Lanka.<br>
+        Web: www.everesthardware.lk &nbsp;&nbsp; E-mail: info@everesthardware.lk<br>
+        Tel: 0094 33 4 950 951 | 0094 33 2 271 013 &nbsp;&nbsp; Company Reg. No.: PV 93413 &nbsp;&nbsp; VAT Reg. No.: 100873613-7000
+    </div>
+</div>
 
-    <main>
-        <div class="">
-            <table class="listView" width="100%" style="padding-left:0.3cm; padding-right:1cm; padding-top:0.2cm;">
-            ';
-            $rowCount = mysqli_num_rows($resultinvoicedetail);
-            $count = 0;
-            $count1 = 0;
+<div class="customer-section">
+    <strong>Customer ID:</strong> ' . htmlspecialchars($customerID) . '<br>
+    <strong style="font-size: 11px;">' . htmlspecialchars($customername) . '</strong><br>
+    ' . htmlspecialchars($customeraddress) . '<br>
+    <strong>Tel:</strong> ' . htmlspecialchars($customerPhone) . '
+</div>
 
-            while ($rowinvoicedetail = $resultinvoicedetail->fetch_assoc()) {
-                $totnew = $rowinvoicedetail['qty'] * $rowinvoicedetail['saleprice'];
-                $fulltot += $totnew;
-                $count = $count + 1;
-                $count1++;
-                $html .= '
-                    <tr>
-                        <td style="width:2.3cm;">' . $count .' ' . $rowinvoicedetail['product_code'] . '</td>
-                        <td style="width:8.86cm;">' . $rowinvoicedetail['product_name'] . '</td>
-                        <td style="width:1.4cm;" align="center">' . $rowinvoicedetail['qty'] . '</td>
-                        <td style="width:2.5cm;" align="right">' . number_format($rowinvoicedetail['saleprice'], 2) . '</td>
-                        <td style="width:1.3cm;" align="right">' . number_format($rowinvoicedetail['discount'], 2) . '</td>
-                        <td style="width:2.6cm;" align="right">' . number_format((($rowinvoicedetail['saleprice'] * $rowinvoicedetail['qty']) - $rowinvoicedetail['discount']), 2) . '</td>
-                    </tr>
-                ';
-                $temptotal = $rowinvoicedetail['qty'] * $rowinvoicedetail['saleprice'];
-                $newtemp += $temptotal;
-                if ($count1 % 25 == 0) {
-                    $html .= '
-                        <tr>
-                            <td colspan="5">This page Total Showing here. See the Next page Thank You</td>
-                            <td style="width:2.6cm;" align="right">' . number_format($newtemp, 2) . '</td>
-                        </tr>
-                        </table>
-                        <div style="page-break-before: always;"></div>
-                        <table class="listView" width="100%" style="padding-left:0.3cm; padding-right:1cm; padding-top:0.2cm;">
-                    ';
-                    $newtemp = 0;
-                }
-            }
-            $html .= '
-            </table> 
-            ';
+<div class="invoice-details">
+';
+if ($isTaxCustomer) {
+    $html .= '<div class="tax-invoice-label">TAX INVOICE</div>';
+} else {
+    $html .= '<div class="tax-invoice-label">INVOICE</div>';
+}
+$html .= '
+  <table style="width:100%; border-collapse:collapse; margin-top:0.2cm;">
+    <tr>
+        <td style="font-weight:bold; width:4cm; padding-bottom:6px;">Date :</td>
+        <td style="padding-bottom:6px;">' . htmlspecialchars($rowinvoiceinfo['date']) . '</td>
+    </tr>
+    <tr>
+        <td style="font-weight:bold; padding-bottom:6px;">Invoice No :</td>
+        <td style="padding-bottom:6px;">' . htmlspecialchars($invoiceno) . '</td>
+    </tr>
+    <tr>
+        <td style="font-weight:bold; padding-bottom:6px;">Purchase Order No :</td>
+        <td style="padding-bottom:6px;">' . htmlspecialchars($pono) . '</td>
+    </tr>
+    <tr>
+        <td style="font-weight:bold; padding-bottom:6px;">Store Location :</td>
+        <td style="padding-bottom:6px;">' . htmlspecialchars($location) . '</td>
+    </tr>
+    <tr>
+        <td style="font-weight:bold; padding-bottom:6px;">Sales Executive :</td>
+        <td style="padding-bottom:6px;">' . htmlspecialchars($rowinvoiceinfo['saleref']) . '</td>
+    </tr>
+    <tr>
+        <td style="font-weight:bold; padding-bottom:6px;">Sales Executive Pho. No :</td>
+        <td style="padding-bottom:6px;">' . htmlspecialchars($salesrepphone) . '</td>
+    </tr>
+</table>
 
-            if ($resultinvoicedetail->num_rows == $count) {
-                $html .= '
-                    <footer>
-                        <div style="margin-top: -0.1cm;margin-right: -1.7cm; padding-right: 2.5cm;">
-                            <table width="100%" height="100%" style="border-collapse: collapse;" border="0">
-                            ';
-                                $discount = $rowinvoiceinfo["discount"];
-                                $net_total = $fulltot - $discount;
 
-                                $html .= '
-                                <tr>
-                                    <td align="right">' . number_format($fulltot, 2) . '</td>
-                                </tr>
-                                <tr>
-                                    <td align="right" style="padding-top:0.2cm;">' . number_format($discount, 2) . '</td>
-                                </tr>
-                                <tr>
-                                    <td align="right" style="padding-top:0.2cm;font-weight: bold;">' . number_format($net_total, 2) . '</td>
-                                </tr>
-                            </table>
-                        </div>
-                    </footer>';
-            }
-            $html .= '  
-        </div>
-        
-    </main>
-    </body>
-    </html>';
+</div>
+
+<table class="items">
+    <thead>
+        <tr>
+            <th style="width: 10%;">CODE</th>
+            <th style="width: 42%;">DESCRIPTION</th>
+            <th style="width: 8%;">QTY</th>
+            <th style="width: 13%;">UNIT PRICE</th>
+            <th style="width: 10%;">DIS.</th>
+            <th style="width: 17%;">AMOUNT</th>
+        </tr>
+    </thead>
+    <tbody>';
+
+$count = 0;
+while ($rowinvoicedetail = $resultinvoicedetail->fetch_assoc()) {
+    $count++;
+    $qty = (float)$rowinvoicedetail['qty'];
+    $saleprice = (float)$rowinvoicedetail['saleprice'];
+    $linediscount = (float)$rowinvoicedetail['discount'];
+
+    if ($isTaxCustomer) {
+        $unit_ex_vat = $saleprice / 1.18;
+        $line_total_ex_vat = ($unit_ex_vat * $qty) - $linediscount;
+        $fulltot += $line_total_ex_vat;
+        $display_unit_price = number_format($unit_ex_vat, 2);
+        $display_line_amount = number_format($line_total_ex_vat, 2);
+    } else {
+        $unit_ex_vat = $saleprice;
+        $line_total_ex_vat = ($unit_ex_vat * $qty) - $linediscount;
+        $fulltot += $line_total_ex_vat;
+        $display_unit_price = number_format($unit_ex_vat, 2);
+        $display_line_amount = number_format($line_total_ex_vat, 2);
+    }
+
+    $html .= '
+        <tr>
+            <td>' . $count . ' ' . htmlspecialchars($rowinvoicedetail['product_code']) . '</td>
+            <td>' . htmlspecialchars($rowinvoicedetail['product_name']) . '</td>
+            <td align="center">' . $qty . '</td>
+            <td align="right">' . $display_unit_price . '</td>
+            <td align="right">' . number_format($linediscount, 2) . '</td>
+            <td align="right">' . $display_line_amount . '</td>
+        </tr>';
+}
+
+$html .= '
+    </tbody>
+</table>
+
+<div class="totals-section">
+    <div class="totals-row">Sub Total: <strong>' . number_format($fulltot, 2) . '</strong></div>
+    <div class="totals-row">Discount: <strong>' . number_format($rowinvoiceinfo['discount'], 2) . '</strong></div>
+    <div class="totals-row">Total With Discount: <strong>' . number_format($fulltot - $rowinvoiceinfo['discount'], 2) . '</strong></div>';
+
+$discount = (float)$rowinvoiceinfo["discount"];
+$net_total_before_vat = $fulltot - $discount;
+$vat_amount = 0;
+$grand_total = $net_total_before_vat;
+
+if ($isTaxCustomer) {
+    $vat_amount = $net_total_before_vat * 0.18;
+    $grand_total = $net_total_before_vat + $vat_amount;
+    $html .= '
+    <div class="totals-row">VAT: <strong>' . number_format($vat_amount, 2) . '</strong></div>
+    <div class="totals-row" style="background-color: #FFE6CC;">Net Total With VAT: <strong>' . number_format($grand_total, 2) . '</strong></div>';
+} else {
+    $html .= '
+    <div class="totals-row" style="background-color: #FFE6CC;">Net Total: <strong>' . number_format($grand_total, 2) . '</strong></div>';
+}
+
+$html .= '
+</div>
+
+<div class="footer-notes">
+    <div>* CHEQUES TO BE DRAWN IN FAVOUR OF "EVEREST HARDWARE CO. (PVT) LTD" CROSSED "A/C PAYEE ONLY"</div>
+</div>
+
+<div class="signature-section">
+    <div class="signature-box">
+        <div class="signature-line"></div>
+        <div class="signature-label">Authorized By</div>
+        <div class="signature-sublabel">EVEREST HARDWARE CO. (PVT) LTD.</div>
+    </div>
+    <div class="signature-box">
+        <div class="signature-line"></div>
+        <div class="signature-label">Checked By</div>
+    </div>
+    <div class="signature-box">
+        <div class="signature-line"></div>
+        <div class="signature-label">Customer Signature</div>
+    </div>
+    <div style="clear: both;"></div>
+</div>
+
+<div class="balance-section">
+    <table width="100%" border="0">
+        <tr>
+            <td width="33%" align="left"><strong>Out Standing</strong></td>
+            <td width="34%" align="center"><strong>Total Balance</strong></td>
+            <td width="33%" align="right">&nbsp;</td>
+        </tr>
+    </table>
+</div>
+
+</body>
+</html>';
 
 $dompdf->loadHtml($html);
-$dompdf->setPaper('21.5cm', '27.5cm', 'portrait');
+$dompdf->setPaper('A4', 'portrait');
 $dompdf->render();
-$dompdf->stream("Test.pdf", ["Attachment" => 0]);
+$dompdf->stream("Invoice_" . $invoiceno . ".pdf", ["Attachment" => 0]);
+exit;

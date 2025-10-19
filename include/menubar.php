@@ -382,6 +382,12 @@ else if ($lastElement == 'monthend.php') {
     $statuscheck = checkprivilege($menuprivilegearray, 74, 3);
     $deletecheck = checkprivilege($menuprivilegearray, 74, 4);
 }
+else if ($lastElement == 'vatreport.php') {
+    $addcheck    = checkprivilege($menuprivilegearray, 80, 1);
+    $editcheck   = checkprivilege($menuprivilegearray, 80, 2);
+    $statuscheck = checkprivilege($menuprivilegearray, 80, 3);
+    $deletecheck = checkprivilege($menuprivilegearray, 80, 4);
+}
 function checkprivilege($arraymenu, $menuID, $type)
 {
     foreach ($arraymenu as $array) {
