@@ -99,7 +99,6 @@ if (!$resultinvoicedetail) {
     die("Database Error: " . $conn->error . "<br>Query: " . $sqlinvoicedetail);
 }
 
-// Get payment info for outstanding balance
 $sqlpayments = "SELECT SUM(amount) as total_paid FROM tbl_payment WHERE tbl_invoice_idtbl_invoice='$recordID' AND status=1";
 $resultpayments = $conn->query($sqlpayments);
 
@@ -115,8 +114,12 @@ $html = '
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>EVEREST Hardware Co - Tax Invoice</title>
+<title>EVEREST Hardware Co - Invoice</title>
 <style>
+    @page {
+        margin: 0;
+        size: 22cm 29.7cm;
+    }
     * { 
         font-size: 9px; 
         margin: 0; 
@@ -125,222 +128,145 @@ $html = '
     }
     body {
         margin: 0;
-        padding: 0.3cm;
+        padding: 0;
+        width: 22cm;
     }
-    .header-box {
-        background-color: #FF8C42;
-        padding: 0.3cm;
-        margin-bottom: 0.2cm;
-        border: 2px solid #000;
-    }
-    .company-name {
-        font-size: 20px;
-        font-weight: bold;
-        text-align: center;
-        margin-bottom: 0.1cm;
-    }
-    .company-info {
-        font-size: 8px;
-        text-align: center;
-    }
-    .customer-section {
-        border: 1px solid #000;
-        padding: 0.3cm;
-        min-height: 3cm;
-        float: left;
-        width: 55%;
-        margin-bottom: 0.2cm;
-        line-height: 1.6; 
-    }
-
-    .invoice-details {
-        float: right;
-        width: 40%;
-        margin-bottom: 0.2cm;
-    }
+   
     .tax-invoice-label {
-        background-color: #FF8C42;
-        padding: 0.2cm;
+        position: absolute;
+        top: 2.9cm;
+        left: 11.7cm;
+        font-size: 12px;
+        font-weight: bold;
         text-align: center;
-        font-weight: bold;
-        font-size: 11px;
-        margin-bottom: 0.1cm;
+        width: 3cm;
     }
-    .detail-row {
-        border: 1px solid #000;
-        padding: 0.1cm 0.2cm;
-        margin-bottom: 1px;
-        min-height: 0.5cm;
-        display: flex;
-        align-items: center;
+    
+    .customer-section {
+        position: absolute;
+        left: 2cm;
+        top: 2.8cm;
+        width: 9cm;
+        line-height: 1.5;
+        font-size: 8.5px;
     }
-    .detail-label {
-        font-weight: bold;
-        width: 45%;
+    
+    .invoice-details {
+        position: absolute;
+        right: 0.8cm;
+        top: 2.8cm;
+        width: 5.5cm;
     }
+    
+    .invoice-details table {
+        margin-left: 100px;
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .invoice-details td {
+        padding: 2px 0;
+        font-size: 8.5px;
+        border: none;
+    }
+    
+    .items-table-wrapper {
+        left: 0.7cm;
+        top: 6.6cm;
+        width: 20.6cm;
+        margin-top: 6.6cm; 
+    }
+    
     table.items {
         width: 100%;
         border-collapse: collapse;
-        clear: both;
-        margin-top: 0.2cm;
+        page-break-inside: auto;
     }
-    table.items th {
-        background-color: #FF8C42;
-        color: #000;
-        font-weight: bold;
-        padding: 0.15cm;
-        border: 1px solid #000;
-        font-size: 9px;
+    
+    table.items tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
     }
+    
     table.items td {
-        border: 1px solid #000;
-        padding: 0.1cm;
+        padding: 0.1cm 0.05cm;
         font-size: 8.5px;
+        border: none;
+        vertical-align: top;
     }
+
+    .col-code { width: 2.9cm; padding-left: 0.15cm !important; }
+    .col-description { width: 5.2cm; }
+    .col-qty { width: 1.6cm; text-align: center; }
+    .col-unit-price { width: 2.6cm; text-align: right; }
+    .col-discount { width: 1.9cm; text-align: right; }
+    .col-amount { width: 3.1cm; text-align: right; padding-right: 0.2cm !important; }
+    
+    /* Totals section */
     .totals-section {
-        float: right;
-        width: 40%;
-        margin-top: 0.2cm;
-    }
-    .totals-row {
-        border: 1px solid #000;
-        padding: 0.1cm 0.2cm;
-        margin-bottom: 1px;
-        text-align: right;
-    }
-    .footer-notes {
-        clear: both;
-        margin-top: 0.3cm;
-        font-size: 7px;
-        line-height: 1.3;
-    }
-    .footer-notes div {
-        margin-bottom: 0.1cm;
-    }
-    .signature-section {
-        margin-top: 0.5cm;
-        border-top: 2px solid #FF8C42;
-        padding-top: 0.3cm;
-        clear: both;
-        padding-left: 0.5cm;
-        padding-right: 0.5cm;
-    }
-    .signature-box {
-        width: 31%;
-        float: left;
-        text-align: center;
-        padding: 0.2cm;
-        margin: 0 1%;
-    }
-    .signature-box:first-of-type {
-        margin-left: 0;
-    }
-    .signature-box:last-of-type {
-        margin-right: 0;
-        padding-right: 0;
-    }
-    .signature-line {
-        border-bottom: 1px solid #333;
-        height: 1.2cm;
-        margin-bottom: 0.2cm;
-    }
-    .signature-label {
-        font-weight: bold;
-        font-size: 9px;
-        color: #FF6B35;
-    }
-    .signature-sublabel {
-        font-size: 7px;
-        color: #666;
-        margin-top: 0.05cm;
-    }
-    .balance-section {
-        background-color: #FFF3CD;
-        border: 1px solid #000;
-        padding: 0.2cm;
-        margin-top: 0.2cm;
-        text-align: center;
-    }
-    .watermark {
         position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%) rotate(-45deg);
-        font-size: 72px;
-        color: rgba(255, 140, 66, 0.1);
-        font-weight: bold;
-        z-index: -1;
+        right: 0.8cm;
+        bottom: 10cm;
+        width: 7cm;
+    }
+    
+    .totals-row {
+        padding: 0.12cm 0.3cm;
+        text-align: right;
+        font-size: 9px;
+        margin-bottom: 0.08cm;
     }
 </style>
 </head>
 <body>
-<div class="watermark">EVEREST</div>
-<div class="header-box">
-    <div class="company-name">EVEREST HARDWARE CO. (PVT) LTD</div>
-    <div class="company-info">
-        # 363/10/01, Malwatta, Katubedda (Moratuwa), Sri Lanka.<br>
-        Web: www.everesthardware.lk &nbsp;&nbsp; E-mail: info@everesthardware.lk<br>
-        Tel: 0094 33 4 950 951 | 0094 33 2 271 013 &nbsp;&nbsp; Company Reg. No.: PV 93413 &nbsp;&nbsp; VAT Reg. No.: 100873613-7000
-    </div>
-</div>
+
+<div class="tax-invoice-label" style="color:red">';
+if ($isTaxCustomer) {
+    $html .= 'TAX<br>INVOICE';
+} else {
+    $html .= 'INVOICE';
+}
+$html .= '</div>
 
 <div class="customer-section">
-    <strong>Customer ID:</strong> ' . htmlspecialchars($customerID) . '<br>
-    <strong style="font-size: 11px;">' . htmlspecialchars($customername) . '</strong><br>
-    ' . htmlspecialchars($customeraddress) . '<br>
-    <strong>Tel:</strong> ' . htmlspecialchars($customerPhone) . '
+    ' . htmlspecialchars($customerID) . '<br>
+    <span style="font-size: 10px; font-weight: bold;">' . htmlspecialchars($customername) . '</span><br>
+    ' . nl2br(htmlspecialchars($customeraddress)) . '<br>
+    ' . htmlspecialchars($customerPhone) . '
 </div>
 
 <div class="invoice-details">
-';
-if ($isTaxCustomer) {
-    $html .= '<div class="tax-invoice-label">TAX INVOICE</div>';
-} else {
-    $html .= '<div class="tax-invoice-label">INVOICE</div>';
-}
-$html .= '
-  <table style="width:100%; border-collapse:collapse; margin-top:0.2cm;">
-    <tr>
-        <td style="font-weight:bold; width:4cm; padding-bottom:6px;">Date :</td>
-        <td style="padding-bottom:6px;">' . htmlspecialchars($rowinvoiceinfo['date']) . '</td>
-    </tr>
-    <tr>
-        <td style="font-weight:bold; padding-bottom:6px;">Invoice No :</td>
-        <td style="padding-bottom:6px;">' . htmlspecialchars($invoiceno) . '</td>
-    </tr>
-    <tr>
-        <td style="font-weight:bold; padding-bottom:6px;">Purchase Order No :</td>
-        <td style="padding-bottom:6px;">' . htmlspecialchars($pono) . '</td>
-    </tr>
-    <tr>
-        <td style="font-weight:bold; padding-bottom:6px;">Store Location :</td>
-        <td style="padding-bottom:6px;">' . htmlspecialchars($location) . '</td>
-    </tr>
-    <tr>
-        <td style="font-weight:bold; padding-bottom:6px;">Sales Executive :</td>
-        <td style="padding-bottom:6px;">' . htmlspecialchars($rowinvoiceinfo['saleref']) . '</td>
-    </tr>
-    <tr>
-        <td style="font-weight:bold; padding-bottom:6px;">Sales Executive Pho. No :</td>
-        <td style="padding-bottom:6px;">' . htmlspecialchars($salesrepphone) . '</td>
-    </tr>
-</table>
-
-
+    <table>
+        <tr>
+            <td style="width: 0.5cm;"></td>
+            <td>' . htmlspecialchars($rowinvoiceinfo['date']) . '</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>' . htmlspecialchars($invoiceno) . '</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>' . htmlspecialchars($pono) . '</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>' . htmlspecialchars($location) . '</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>' . htmlspecialchars($rowinvoiceinfo['saleref']) . '</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>' . htmlspecialchars($salesrepphone) . '</td>
+        </tr>
+    </table>
 </div>
 
-<table class="items">
-    <thead>
-        <tr>
-            <th style="width: 10%;">CODE</th>
-            <th style="width: 42%;">DESCRIPTION</th>
-            <th style="width: 8%;">QTY</th>
-            <th style="width: 13%;">UNIT PRICE</th>
-            <th style="width: 10%;">DIS.</th>
-            <th style="width: 17%;">AMOUNT</th>
-        </tr>
-    </thead>
-    <tbody>';
+<div class="items-table-wrapper">
+    <table class="items">
+        <tbody>';
 
 $count = 0;
 while ($rowinvoicedetail = $resultinvoicedetail->fetch_assoc()) {
@@ -365,23 +291,23 @@ while ($rowinvoicedetail = $resultinvoicedetail->fetch_assoc()) {
 
     $html .= '
         <tr>
-            <td>' . $count . ' ' . htmlspecialchars($rowinvoicedetail['product_code']) . '</td>
-            <td>' . htmlspecialchars($rowinvoicedetail['product_name']) . '</td>
-            <td align="center">' . $qty . '</td>
-            <td align="right">' . $display_unit_price . '</td>
-            <td align="right">' . number_format($linediscount, 2) . '</td>
-            <td align="right">' . $display_line_amount . '</td>
+            <td class="col-code">' . htmlspecialchars($rowinvoicedetail['product_code']) . '</td>
+            <td class="col-description">' . htmlspecialchars($rowinvoicedetail['product_name']) . '</td>
+            <td class="col-qty">' . $qty . '</td>
+            <td class="col-unit-price">' . $display_unit_price . '</td>
+            <td class="col-discount">' . number_format($linediscount, 2) . '</td>
+            <td class="col-amount">' . $display_line_amount . '</td>
         </tr>';
 }
 
 $html .= '
-    </tbody>
-</table>
-
+        </tbody>
+    </table>
+</div>
 <div class="totals-section">
-    <div class="totals-row">Sub Total: <strong>' . number_format($fulltot, 2) . '</strong></div>
-    <div class="totals-row">Discount: <strong>' . number_format($rowinvoiceinfo['discount'], 2) . '</strong></div>
-    <div class="totals-row">Total With Discount: <strong>' . number_format($fulltot - $rowinvoiceinfo['discount'], 2) . '</strong></div>';
+    <div class="totals-row">' . number_format($fulltot, 2) . '</div>
+    <div class="totals-row">' . number_format($rowinvoiceinfo['discount'], 2) . '</div>
+    <div class="totals-row">' . number_format($fulltot - $rowinvoiceinfo['discount'], 2) . '</div>';
 
 $discount = (float)$rowinvoiceinfo["discount"];
 $net_total_before_vat = $fulltot - $discount;
@@ -392,52 +318,23 @@ if ($isTaxCustomer) {
     $vat_amount = $net_total_before_vat * 0.18;
     $grand_total = $net_total_before_vat + $vat_amount;
     $html .= '
-    <div class="totals-row">VAT: <strong>' . number_format($vat_amount, 2) . '</strong></div>
-    <div class="totals-row" style="background-color: #FFE6CC;">Net Total With VAT: <strong>' . number_format($grand_total, 2) . '</strong></div>';
+    <div class="totals-row">' . number_format($vat_amount, 2) . '</div>
+    <div class="totals-row" style="font-weight: bold;">' . number_format($grand_total, 2) . '</div>';
 } else {
+    $vat_amount = 0;
     $html .= '
-    <div class="totals-row" style="background-color: #FFE6CC;">Net Total: <strong>' . number_format($grand_total, 2) . '</strong></div>';
+    <div class="totals-row">' . number_format($vat_amount, 2) . '</div>
+    <div class="totals-row" style="font-weight: bold;">' . number_format($grand_total, 2) . '</div>';
 }
 
 $html .= '
-</div>
-
-<div class="footer-notes">
-    <div>* CHEQUES TO BE DRAWN IN FAVOUR OF "EVEREST HARDWARE CO. (PVT) LTD" CROSSED "A/C PAYEE ONLY"</div>
-</div>
-
-<div class="signature-section">
-    <div class="signature-box">
-        <div class="signature-line"></div>
-        <div class="signature-label">Authorized By</div>
-        <div class="signature-sublabel">EVEREST HARDWARE CO. (PVT) LTD.</div>
-    </div>
-    <div class="signature-box">
-        <div class="signature-line"></div>
-        <div class="signature-label">Checked By</div>
-    </div>
-    <div class="signature-box">
-        <div class="signature-line"></div>
-        <div class="signature-label">Customer Signature</div>
-    </div>
-    <div style="clear: both;"></div>
-</div>
-
-<div class="balance-section">
-    <table width="100%" border="0">
-        <tr>
-            <td width="33%" align="left"><strong>Out Standing</strong></td>
-            <td width="34%" align="center"><strong>Total Balance</strong></td>
-            <td width="33%" align="right">&nbsp;</td>
-        </tr>
-    </table>
 </div>
 
 </body>
 </html>';
 
 $dompdf->loadHtml($html);
-$dompdf->setPaper('A4', 'portrait');
+$dompdf->setPaper(array(0, 0, 623.622, 841.89), 'portrait'); 
 $dompdf->render();
 $dompdf->stream("Invoice_" . $invoiceno . ".pdf", ["Attachment" => 0]);
 exit;
