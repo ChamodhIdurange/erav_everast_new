@@ -221,11 +221,11 @@ $html = '
 <body>
 
 <div class="tax-invoice-label" style="color:red">';
-if ($isTaxCustomer) {
-    $html .= 'TAX<br>INVOICE';
-} else {
-    $html .= 'INVOICE';
-}
+// if ($isTaxCustomer) {
+//     $html .= 'TAX<br>INVOICE';
+// } else {
+//     $html .= 'INVOICE';
+// }
 $html .= '</div>
 
 <div class="customer-section">
