@@ -28,7 +28,6 @@ $customerId = null;
 
 $fullDiscount = $discount + $podiscountAmount;
 
-// ------------------- CONFIRMED -------------------
 if ($acceptanceType == 1) {
     $updatePoValues = "UPDATE `tbl_customer_order` 
         SET `date`='$today', 
@@ -53,7 +52,6 @@ if ($acceptanceType == 1) {
         $customerId = $row['tbl_customer_idtbl_customer'];
 
         if ($isChangeStatus == 1) {
-            // Insert invoice record
             $insertInvoice = "INSERT INTO `tbl_invoice` 
                 (`invoiceno`, `date`, `total`, `discount`, `vatamount`, `nettotal`, 
                  `paymentcomplete`, `status`, `updatedatetime`, 
@@ -67,7 +65,7 @@ if ($acceptanceType == 1) {
             if ($conn->query($insertInvoice)) {
                 $invoiceId = $conn->insert_id;
 
-                // 🧾 VAT-based Invoice Number Generation
+                //  VAT-based Invoice Number Generation
                 $getCustomerVat = "SELECT vat_num FROM tbl_customer WHERE idtbl_customer = '$customerId'";
                 $resultVat = $conn->query($getCustomerVat);
 
@@ -111,7 +109,7 @@ if ($acceptanceType == 1) {
         }
     }
 }
-// ------------------- DISPATCHED -------------------
+
 else if ($acceptanceType == 2) {
     $updatePoValues = "UPDATE  `tbl_customer_order` 
         SET `podiscount`='$podiscountAmount', 
@@ -137,7 +135,7 @@ else if ($acceptanceType == 2) {
         VALUES('$dispatchId', '$poID')";
     $conn->query($insertDispatchInfo);
 }
-// ------------------- DELIVERED -------------------
+
 else if ($acceptanceType == 3) {
     $updatePoValues = "UPDATE  `tbl_customer_order` 
         SET `podiscount`='$podiscountAmount', 
@@ -170,7 +168,6 @@ else if ($acceptanceType == 3) {
     $conn->query($updateinvoicehead);
 }
 
-// ------------------- MAIN PO UPDATE -------------------
 if ($conn->query($updatePoValues) == true) {
     if ($isChangeStatus == 1) {
         $conn->query($updatePoStatus);
@@ -197,10 +194,6 @@ if ($conn->query($updatePoValues) == true) {
             $conn->query($deleteHoldStock);
         }
 
-        // Keep your existing line item update logic here as before
-        // Example placeholder:
-        // $updateHoldStock = "...";
-        // $conn->query($updateHoldStock);
     }
 
     $actionObj = new stdClass();

@@ -3,6 +3,15 @@ session_start();
 require_once('../connection/db.php');
 require_once '../vendor/autoload.php';
 
+$taxQuery = "SELECT `rate` FROM `tbl_tax` LIMIT 1";
+$taxResult = $conn->query($taxQuery);
+$tax = 0;
+
+if ($taxResult && $taxResult->num_rows > 0) {
+    $row = $taxResult->fetch_assoc();
+    $tax = $row['rate'];
+}
+
 use Dompdf\Dompdf;
 use Dompdf\Options;
 
@@ -276,7 +285,7 @@ while ($rowinvoicedetail = $resultinvoicedetail->fetch_assoc()) {
     $linediscount = (float)$rowinvoicedetail['discount'];
 
     if ($isTaxCustomer) {
-        $unit_ex_vat = $saleprice / 1.18;
+        $unit_ex_vat = $saleprice / (1 + ($tax / 100));
         $line_total_ex_vat = ($unit_ex_vat * $qty) - $linediscount;
         $fulltot += $line_total_ex_vat;
         $display_unit_price = number_format($unit_ex_vat, 2);
@@ -315,7 +324,7 @@ $vat_amount = 0;
 $grand_total = $net_total_before_vat;
 
 if ($isTaxCustomer) {
-    $vat_amount = $net_total_before_vat * 0.18;
+    $vat_amount = $net_total_before_vat * ($tax / 100);
     $grand_total = $net_total_before_vat + $vat_amount;
     $html .= '
     <div class="totals-row">' . number_format($vat_amount, 2) . '</div>
@@ -334,7 +343,7 @@ $html .= '
 </html>';
 
 $dompdf->loadHtml($html);
-$dompdf->setPaper(array(0, 0, 623.622, 841.89), 'portrait'); 
+$dompdf->setPaper(array(0, 0, 623.622, 841.89), 'portrait');
 $dompdf->render();
 $dompdf->stream("Invoice_" . $invoiceno . ".pdf", ["Attachment" => 0]);
 exit;

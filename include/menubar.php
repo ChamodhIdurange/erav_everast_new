@@ -769,6 +769,9 @@ function checkprivilege($arraymenu, $menuID, $type)
                     <?php }
                                     if (menucheck($menuprivilegearray, 73) == 1) { ?>
                     <a class="nav-link p-0 px-3 py-1" href="rptdebtoragingdetails.php">Debtor Aging Report</a>
+                    <?php }
+                                    if (menucheck($menuprivilegearray, 80) == 1) { ?>
+                    <a class="nav-link p-0 px-3 py-1" href="vatreport.php">VAT Report</a>
                     <?php } ?>
                 </nav>
             </div>
