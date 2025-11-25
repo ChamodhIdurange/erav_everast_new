@@ -92,15 +92,26 @@ $isTaxCustomer = !empty($vat_num);
 
 $sqlinvoicedetail = "
 SELECT 
-  `tbl_product`.`product_name`, 
-  `tbl_product`.`product_code`, 
-  `tbl_product`.`idtbl_product`, 
-  `tbl_invoice_detail`.`qty`, 
-  `tbl_invoice_detail`.`saleprice`, 
-  `tbl_invoice_detail`.`discount` 
-FROM `tbl_invoice_detail` 
-LEFT JOIN `tbl_product` ON `tbl_product`.`idtbl_product`=`tbl_invoice_detail`.`tbl_product_idtbl_product` 
-WHERE `tbl_invoice_detail`.`tbl_invoice_idtbl_invoice`='$recordID' AND `tbl_invoice_detail`.`status`=1";
+  tbl_product.product_name, 
+  tbl_product.product_code, 
+  tbl_product.idtbl_product, 
+  tbl_invoice_detail.qty, 
+  tbl_invoice_detail.saleprice, 
+  tbl_invoice_detail.discount,
+  tbl_customer_order_detail.discountpresent
+FROM tbl_invoice_detail
+LEFT JOIN tbl_product 
+  ON tbl_product.idtbl_product = tbl_invoice_detail.tbl_product_idtbl_product
+LEFT JOIN tbl_invoice 
+  ON tbl_invoice.idtbl_invoice = tbl_invoice_detail.tbl_invoice_idtbl_invoice
+LEFT JOIN tbl_customer_order 
+  ON tbl_customer_order.idtbl_customer_order = tbl_invoice.tbl_customer_order_idtbl_customer_order
+LEFT JOIN tbl_customer_order_detail 
+  ON tbl_customer_order_detail.tbl_customer_order_idtbl_customer_order = tbl_customer_order.idtbl_customer_order
+ AND tbl_customer_order_detail.tbl_product_idtbl_product = tbl_invoice_detail.tbl_product_idtbl_product
+WHERE tbl_invoice_detail.tbl_invoice_idtbl_invoice = '$recordID' 
+  AND tbl_invoice_detail.status = 1";
+
 
 $resultinvoicedetail = $conn->query($sqlinvoicedetail);
 
@@ -285,7 +296,7 @@ while ($rowinvoicedetail = $resultinvoicedetail->fetch_assoc()) {
     $count++;
     $qty = (float)$rowinvoicedetail['qty'];
     $saleprice = (float)$rowinvoicedetail['saleprice'];
-    $linediscount = (float)$rowinvoicedetail['discount'];
+    $linediscountpercentage = (float)$rowinvoicedetail['discountpresent'];
 
     $display_unit_price = 0;
     $line_total = 0;
@@ -293,16 +304,22 @@ while ($rowinvoicedetail = $resultinvoicedetail->fetch_assoc()) {
     if ($isTaxCustomer) {
         $unit_ex_vat = $saleprice / (1 + ($tax / 100));
         $display_unit_price = $unit_ex_vat;
+        $linediscount = ($linediscountpercentage / 100) * ($unit_ex_vat * $qty);    
         $line_total = $unit_ex_vat * $qty;
         $subtotal_without_tax += $line_total;
+        $total_item_discount += $linediscount;
+        $line_total_after_discount = $line_total - $linediscount;
+        
     } else {
         $display_unit_price = $saleprice;
+        $linediscount = ($linediscountpercentage / 100) * ($saleprice * $qty);
         $line_total = $saleprice * $qty;
         $subtotal_without_tax += $line_total;
+        $total_item_discount += $linediscount;
+        $line_total_after_discount = $line_total - $linediscount;
     }
 
-    $total_item_discount += $linediscount;
-    $line_total_after_discount = $line_total - $linediscount;
+    
 
     $html .= '
         <tr>
