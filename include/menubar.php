@@ -383,10 +383,10 @@ else if ($lastElement == 'monthend.php') {
     $deletecheck = checkprivilege($menuprivilegearray, 74, 4);
 }
 else if ($lastElement == 'vatreport.php') {
-    $addcheck    = checkprivilege($menuprivilegearray, 80, 1);
-    $editcheck   = checkprivilege($menuprivilegearray, 80, 2);
-    $statuscheck = checkprivilege($menuprivilegearray, 80, 3);
-    $deletecheck = checkprivilege($menuprivilegearray, 80, 4);
+    $addcheck    = checkprivilege($menuprivilegearray, 75, 1);
+    $editcheck   = checkprivilege($menuprivilegearray, 75, 2);
+    $statuscheck = checkprivilege($menuprivilegearray, 75, 3);
+    $deletecheck = checkprivilege($menuprivilegearray, 75, 4);
 }
 function checkprivilege($arraymenu, $menuID, $type)
 {
@@ -541,10 +541,10 @@ function checkprivilege($arraymenu, $menuID, $type)
             </div>
             <?php }
                     if (menucheck($menuprivilegearray, 74) == 1) { ?>
-            <a class="nav-link p-0 px-3 py-2" href="monthend.php">
+            <!-- <a class="nav-link p-0 px-3 py-2" href="monthend.php">
                 <div class="nav-link-icon"><i data-feather="calendar"></i></div>
                 Month End
-            </a>
+            </a> -->
             <?php }
                     if (menucheck($menuprivilegearray, 40) == 1) { ?>
             <a class="nav-link p-0 px-3 py-2" href="vatinfo.php">
@@ -770,7 +770,7 @@ function checkprivilege($arraymenu, $menuID, $type)
                                     if (menucheck($menuprivilegearray, 73) == 1) { ?>
                     <a class="nav-link p-0 px-3 py-1" href="rptdebtoragingdetails.php">Debtor Aging Report</a>
                     <?php }
-                                    if (menucheck($menuprivilegearray, 80) == 1) { ?>
+                                    if (menucheck($menuprivilegearray, 75) == 1) { ?>
                     <a class="nav-link p-0 px-3 py-1" href="vatreport.php">VAT Report</a>
                     <?php } ?>
                 </nav>

@@ -278,34 +278,40 @@ $html .= '</div>
         <tbody>';
 
 $count = 0;
+$subtotal_without_tax = 0;
+$total_item_discount = 0;
+
 while ($rowinvoicedetail = $resultinvoicedetail->fetch_assoc()) {
     $count++;
     $qty = (float)$rowinvoicedetail['qty'];
     $saleprice = (float)$rowinvoicedetail['saleprice'];
     $linediscount = (float)$rowinvoicedetail['discount'];
 
+    $display_unit_price = 0;
+    $line_total = 0;
+
     if ($isTaxCustomer) {
         $unit_ex_vat = $saleprice / (1 + ($tax / 100));
-        $line_total_ex_vat = ($unit_ex_vat * $qty) - $linediscount;
-        $fulltot += $line_total_ex_vat;
-        $display_unit_price = number_format($unit_ex_vat, 2);
-        $display_line_amount = number_format($line_total_ex_vat, 2);
+        $display_unit_price = $unit_ex_vat;
+        $line_total = $unit_ex_vat * $qty;
+        $subtotal_without_tax += $line_total;
     } else {
-        $unit_ex_vat = $saleprice;
-        $line_total_ex_vat = ($unit_ex_vat * $qty) - $linediscount;
-        $fulltot += $line_total_ex_vat;
-        $display_unit_price = number_format($unit_ex_vat, 2);
-        $display_line_amount = number_format($line_total_ex_vat, 2);
+        $display_unit_price = $saleprice;
+        $line_total = $saleprice * $qty;
+        $subtotal_without_tax += $line_total;
     }
+
+    $total_item_discount += $linediscount;
+    $line_total_after_discount = $line_total - $linediscount;
 
     $html .= '
         <tr>
             <td class="col-code">' . htmlspecialchars($rowinvoicedetail['product_code']) . '</td>
             <td class="col-description">' . htmlspecialchars($rowinvoicedetail['product_name']) . '</td>
             <td class="col-qty">' . $qty . '</td>
-            <td class="col-unit-price">' . $display_unit_price . '</td>
+            <td class="col-unit-price">' . number_format($display_unit_price, 2) . '</td>
             <td class="col-discount">' . number_format($linediscount, 2) . '</td>
-            <td class="col-amount">' . $display_line_amount . '</td>
+            <td class="col-amount">' . number_format($line_total_after_discount, 2) . '</td>
         </tr>';
 }
 
@@ -313,26 +319,32 @@ $html .= '
         </tbody>
     </table>
 </div>
-<div class="totals-section">
-    <div class="totals-row">' . number_format($fulltot, 2) . '</div>
-    <div class="totals-row">' . number_format($rowinvoiceinfo['discount'], 2) . '</div>
-    <div class="totals-row">' . number_format($fulltot - $rowinvoiceinfo['discount'], 2) . '</div>';
+<div class="totals-section">';
 
-$discount = (float)$rowinvoiceinfo["discount"];
-$net_total_before_vat = $fulltot - $discount;
-$vat_amount = 0;
-$grand_total = $net_total_before_vat;
+$invoice_discount = (float)$rowinvoiceinfo["discount"];
+$total_all_discounts = $total_item_discount + $invoice_discount;
 
 if ($isTaxCustomer) {
-    $vat_amount = $net_total_before_vat * ($tax / 100);
-    $grand_total = $net_total_before_vat + $vat_amount;
+    $subtotal = $subtotal_without_tax;
+    $total_after_discount = $subtotal - $total_all_discounts;
+    $vat_amount = $total_after_discount * ($tax / 100);
+    $grand_total = $total_after_discount + $vat_amount;
+
     $html .= '
+    <div class="totals-row">' . number_format($subtotal, 2) . '</div>
+    <div class="totals-row">' . number_format($total_all_discounts, 2) . '</div>
+    <div class="totals-row">' . number_format($total_after_discount, 2) . '</div>
     <div class="totals-row">' . number_format($vat_amount, 2) . '</div>
     <div class="totals-row" style="font-weight: bold;">' . number_format($grand_total, 2) . '</div>';
 } else {
-    $vat_amount = 0;
+    $subtotal = $subtotal_without_tax;
+    $grand_total = $subtotal - $total_all_discounts;
+
     $html .= '
-    <div class="totals-row">' . number_format($vat_amount, 2) . '</div>
+    <div class="totals-row">' . number_format($subtotal, 2) . '</div>
+    <div class="totals-row">' . number_format($total_all_discounts, 2) . '</div>
+    <div class="totals-row">' . number_format($grand_total, 2) . '</div>
+    <div class="totals-row">0.00</div>
     <div class="totals-row" style="font-weight: bold;">' . number_format($grand_total, 2) . '</div>';
 }
 
