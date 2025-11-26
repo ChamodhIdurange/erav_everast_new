@@ -98,6 +98,7 @@ include "include/topnavbar.php";
                                                 <th>Rep Name</th>
                                                 <th>Remarks</th>
                                                 <th>Customer</th>
+                                                <th>VAT(%)</th>
                                                 <th class="text-right">Subtotal</th>
                                                 <th class="text-right">Discount</th>
                                                 <th class="text-right">Nettotal</th>
@@ -821,6 +822,9 @@ include "include/topnavbar.php";
                 },
                 {
                     "data": "cusname"
+                },
+                {
+                    "data": "vat"
                 },
                 {
                     "targets": -1,

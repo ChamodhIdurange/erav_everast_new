@@ -1,19 +1,15 @@
 <?php
 require_once('../connection/db.php');
 
-$record=$_POST['customerID'];
+$customerID = $_POST['customerID'];
 
-$sql="SELECT `address`, `phone`, `type` FROM `tbl_customer` WHERE `idtbl_customer`='$record'";
-$result=$conn->query($sql);
-$row=$result->fetch_assoc();
+$query = "SELECT phone, address, type, vat_num FROM tbl_customer WHERE idtbl_customer = '$customerID' LIMIT 1";
+$result = $conn->query($query);
 
-
-$obj=new stdClass();
-
-$obj->phone=$row['phone'];
-$obj->address=$row['address'];
-$obj->address=$row['address'];
-$obj->type=$row['type'];
-
-echo json_encode($obj);
+if ($result->num_rows > 0) {
+    $row = $result->fetch_assoc();
+    echo json_encode($row);
+} else {
+    echo json_encode(['phone' => '', 'address' => '', 'type' => '', 'vat_num' => '']);
+}
 ?>

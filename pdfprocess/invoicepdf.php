@@ -1,7 +1,7 @@
 <?php
 session_start();
 require_once('../connection/db.php');
-require_once '../vendor/autoload.php'; // Adjust the path as necessary
+require_once '../vendor/autoload.php';
 
 use Dompdf\Dompdf;
 use Dompdf\Options;
@@ -26,7 +26,38 @@ $totalpayment = 0;
 $net_total = 0;
 $newtemp = 0;
 
-$sqlinvoiceinfo = "SELECT `tbl_invoice`.`discount`, `tbl_invoice`.`idtbl_invoice`, `tbl_invoice`.`invoiceno`, `tbl_invoice`.`date`, `tbl_invoice`.`total`, `tbl_invoice`.`paymentcomplete`, `tbl_locations`.`idtbl_locations`, `tbl_locations`.`locationname`, `tbl_customer`.`name`, `tbl_customer`.`address`, `tbl_customer`.`phone`, `tbl_employee`.`name` AS `saleref`, `tbl_employee`.`phone` AS 'salesrepphone', `tbl_area`.`area`, `tbl_user`.`name` as `username`, `tbl_invoice`.`tbl_customer_idtbl_customer`, `tbl_customer_order`.`cuspono` FROM `tbl_invoice` LEFT JOIN `tbl_locations` ON `tbl_locations`.`idtbl_locations`=`tbl_invoice`.`tbl_locations_idtbl_locations` LEFT JOIN `tbl_customer` ON `tbl_customer`.`idtbl_customer`=`tbl_invoice`.`tbl_customer_idtbl_customer` LEFT JOIN `tbl_customer_order` ON `tbl_customer_order`.`idtbl_customer_order`=`tbl_invoice`.`tbl_customer_order_idtbl_customer_order` LEFT JOIN `tbl_employee` ON `tbl_employee`.`idtbl_employee`=`tbl_customer_order`.`tbl_employee_idtbl_employee` LEFT JOIN `tbl_area` ON `tbl_area`.`idtbl_area`=`tbl_invoice`.`tbl_area_idtbl_area` LEFT JOIN `tbl_user` ON `tbl_user`.`idtbl_user`=`tbl_invoice`.`tbl_user_idtbl_user`WHERE `tbl_invoice`.`status`=1 AND `tbl_invoice`.`idtbl_invoice`='$recordID'";
+$sqlinvoiceinfo = "SELECT 
+    `tbl_invoice`.`discount`, 
+    `tbl_invoice`.`vat_status`, 
+    `tbl_invoice`.`vat_rate`, 
+    `tbl_invoice`.`idtbl_invoice`, 
+    `tbl_invoice`.`invoiceno`, 
+    `tbl_invoice`.`date`, 
+    `tbl_invoice`.`total`, 
+    `tbl_invoice`.`paymentcomplete`, 
+    `tbl_locations`.`idtbl_locations`, 
+    `tbl_locations`.`locationname`, 
+    `tbl_customer`.`name`, 
+    `tbl_customer`.`vat_num`, 
+    `tbl_customer`.`address`, 
+    `tbl_customer`.`phone`, 
+    `tbl_employee`.`name` AS `saleref`, 
+    `tbl_employee`.`phone` AS 'salesrepphone', 
+    `tbl_area`.`area`, 
+    `tbl_user`.`name` as `username`, 
+    `tbl_invoice`.`tbl_customer_idtbl_customer`, 
+    `tbl_customer_order`.`cuspono`,
+    `tbl_customer_order`.`vat` as `order_vat`,
+    `tbl_customer_order`.`podiscountpercentage`
+FROM `tbl_invoice` 
+LEFT JOIN `tbl_locations` ON `tbl_locations`.`idtbl_locations`=`tbl_invoice`.`tbl_locations_idtbl_locations` 
+LEFT JOIN `tbl_customer` ON `tbl_customer`.`idtbl_customer`=`tbl_invoice`.`tbl_customer_idtbl_customer` 
+LEFT JOIN `tbl_customer_order` ON `tbl_customer_order`.`idtbl_customer_order`=`tbl_invoice`.`tbl_customer_order_idtbl_customer_order` 
+LEFT JOIN `tbl_employee` ON `tbl_employee`.`idtbl_employee`=`tbl_customer_order`.`tbl_employee_idtbl_employee` 
+LEFT JOIN `tbl_area` ON `tbl_area`.`idtbl_area`=`tbl_invoice`.`tbl_area_idtbl_area` 
+LEFT JOIN `tbl_user` ON `tbl_user`.`idtbl_user`=`tbl_invoice`.`tbl_user_idtbl_user` 
+WHERE `tbl_invoice`.`status`=1 AND `tbl_invoice`.`idtbl_invoice`='$recordID'";
+
 $resultinvoiceinfo = $conn->query($sqlinvoiceinfo);
 $rowinvoiceinfo = $resultinvoiceinfo->fetch_assoc();
 
@@ -39,12 +70,15 @@ $paymentcomplete = $rowinvoiceinfo['paymentcomplete'];
 $invoID = $rowinvoiceinfo['idtbl_invoice'];
 $invoiceno = $rowinvoiceinfo['invoiceno']; 
 $pono = $rowinvoiceinfo['cuspono']; 
-$salesrepphone = $rowinvoiceinfo['salesrepphone']; 
+$salesrepphone = $rowinvoiceinfo['salesrepphone'];
 
+// VAT status and rate from invoice table
+$vat_status = isset($rowinvoiceinfo['vat_status']) ? $rowinvoiceinfo['vat_status'] : 0;
+$vat_rate = $rowinvoiceinfo['order_vat'];
 
-// $sqlpoID = "SELECT `idtbl_porder_invoice` FROM `tbl_porder_invoice` WHERE `tbl_invoice_idtbl_invoice` = '$invoID'";
-// $resultpoID = $conn->query($sqlpoID);
-// $rowpoID = $resultpoID->fetch_assoc();
+// Check if customer is VAT registered
+$vat_num = isset($rowinvoiceinfo['vat_num']) ? trim($rowinvoiceinfo['vat_num']) : '';
+$isTaxCustomer = !empty($vat_num);
 
 $sqlinvoicedetail = "SELECT `tbl_product`.`product_name`, `tbl_product`.`product_code`, `tbl_product`.`idtbl_product`, `tbl_invoice_detail`.`qty`, `tbl_invoice_detail`.`saleprice`, `tbl_invoice_detail`.`discount` FROM `tbl_invoice_detail` LEFT JOIN `tbl_product` ON `tbl_product`.`idtbl_product`=`tbl_invoice_detail`.`tbl_product_idtbl_product` WHERE `tbl_invoice_detail`.`tbl_invoice_idtbl_invoice`='$recordID' AND `tbl_invoice_detail`.`status`=1";
 $resultinvoicedetail = $conn->query($sqlinvoicedetail);
@@ -111,16 +145,33 @@ $html = '
                 <td colspan="3" height="1.8cm"></td>
             </tr>
             <tr>
-                <td class="leftboxtop" width="10cm">
-                    <table border="0" width="100%" style="margin-top:-43; padding-left:0.3cm;">
-                        <tr>
-                            <td>Customer ID : ' . $customerID . '<br><span  style="font-size: 1.2em; font-weight: bold;">' . $customername . '</span><br>' . $customeraddress . '<br>Tel : ' . $customerPhone . '</td>
-                        </tr>
-                    </table>
+                <td class="leftboxtop" width="10cm">';
+                
+                if($isTaxCustomer){
+                    $html .= '
+                        <table border="0" width="100%" style="margin-top:10px; padding-left:0.3cm;">
+                            <tr>
+                                <td>Customer ID : ' . $customerID . '<br><span style="font-size: 1.2em; font-weight: bold;">' . $customername . '</span><br>' . $customeraddress . '<br>Tel : ' . $customerPhone . '<br><br>VAT No: ' . $vat_num . '</td>
+                            </tr>
+                        </table>';
+                } else {
+                    $html .= '
+                        <table border="0" width="100%" style="margin-top:-43px; padding-left:0.3cm;">
+                            <tr>
+                                <td>Customer ID : ' . $customerID . '<br><span style="font-size: 1.2em; font-weight: bold;">' . $customername . '</span><br>' . $customeraddress . '<br>Tel : ' . $customerPhone . '</td>
+                            </tr>
+                        </table>';
+                }
+                
+                $html .= '
                 </td>
                 <td width="3cm">&nbsp;</td>
-                <td>
-                    <table width="100%" height="100%" border="0">
+                <td>';
+                
+                $rightTableStyle = $isTaxCustomer ? 'margin-top:15px;' : '';
+                
+                $html .= '
+                    <table width="100%" height="100%" border="0" style="' . $rightTableStyle . '">
                         <tr><td width="55%" height="0.5cm"> </td><td align="left">' .  $rowinvoiceinfo['date'] . ' </td></tr>
                         <tr><td height="0.5cm"></td> <td align="left">' . $invoiceno . '</td></tr>
                         <tr><td height="0.5cm"></td> <td align="left">' . $pono . '</td></tr>
@@ -142,21 +193,32 @@ $html = '
             $count1 = 0;
 
             while ($rowinvoicedetail = $resultinvoicedetail->fetch_assoc()) {
-                $totnew = $rowinvoicedetail['qty'] * $rowinvoicedetail['saleprice'];
-                $fulltot += $totnew;
                 $count = $count + 1;
                 $count1++;
+                
+                // Extract base price from VAT-inclusive price for tax customers
+                if($isTaxCustomer){
+                    $base_price = $rowinvoicedetail['saleprice'] / (1 + ($vat_rate / 100));
+                    $base_discount = $rowinvoicedetail['discount'] / (1 + ($vat_rate / 100));
+                } else {
+                    $base_price = $rowinvoicedetail['saleprice'];
+                    $base_discount = $rowinvoicedetail['discount'];
+                }
+                
+                $line_total_base = ($rowinvoicedetail['qty'] * $base_price) - $base_discount;
+                $fulltot += $line_total_base;
+                
                 $html .= '
                     <tr>
                         <td style="width:2.3cm;">' . $count .' ' . $rowinvoicedetail['product_code'] . '</td>
                         <td style="width:8.86cm;">' . $rowinvoicedetail['product_name'] . '</td>
                         <td style="width:1.4cm;" align="center">' . $rowinvoicedetail['qty'] . '</td>
-                        <td style="width:2.5cm;" align="right">' . number_format($rowinvoicedetail['saleprice'], 2) . '</td>
-                        <td style="width:1.3cm;" align="right">' . number_format($rowinvoicedetail['discount'], 2) . '</td>
-                        <td style="width:2.6cm;" align="right">' . number_format((($rowinvoicedetail['saleprice'] * $rowinvoicedetail['qty']) - $rowinvoicedetail['discount']), 2) . '</td>
+                        <td style="width:2.5cm;" align="right">' . number_format($base_price, 2) . '</td>
+                        <td style="width:1.3cm;" align="right">' . number_format($base_discount, 2) . '</td>
+                        <td style="width:2.6cm;" align="right">' . number_format($line_total_base, 2) . '</td>
                     </tr>
                 ';
-                $temptotal = $rowinvoicedetail['qty'] * $rowinvoicedetail['saleprice'];
+                $temptotal = $rowinvoicedetail['qty'] * $base_price;
                 $newtemp += $temptotal;
                 if ($count1 % 25 == 0) {
                     $html .= '
@@ -176,15 +238,55 @@ $html = '
             ';
 
             if ($resultinvoicedetail->num_rows == $count) {
-                $html .= '
+                if($isTaxCustomer){
+                    // VAT INVOICE TOTALS
+                    $subtotal_before_discount = $fulltot;
+                    
+                    // Extract base discount (remove VAT from discount)
+                    $base_discount = $subtotal_before_discount * ($rowinvoiceinfo["podiscountpercentage"] / 100) ;
+                    
+                    // Net amount before VAT
+                    $net_before_vat = $subtotal_before_discount - $base_discount;
+                    
+                    // Calculate VAT amount
+                    $vat_amount = $subtotal_before_discount * ($vat_rate / 100);
+                    
+                    // Grand total with VAT
+                    $grand_total = $net_before_vat + $vat_amount;
+                    
+                    $html .= '
+                    <footer>
+                        <div style="margin-top: -0.4cm;margin-right: -1.7cm; padding-right: 2.5cm;">
+                            <table width="100%" height="100%" style="border-collapse: collapse;" border="0">
+                                <tr>
+                                    <td align="right">' . number_format($subtotal_before_discount, 2) . '</td>
+                                </tr>
+                                <tr>
+                                    <td align="right" style="padding-top:0.2cm;">' . number_format($base_discount, 2) . '</td>
+                                </tr>
+                                <tr>
+                                    <td align="right" style="padding-top:0.2cm;font-weight: bold;">' . number_format($net_before_vat, 2) . '</td>
+                                </tr>
+                                <tr>
+                                    <td align="right" style="padding-top:0.2cm;"> ' . number_format($vat_amount, 2) . '</td>
+                                </tr>
+                                <tr>
+                                    <td align="right" style="padding-top:0.2cm;font-weight: bold;">
+                                        ' . number_format($grand_total, 2) . '
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </footer>';
+                } else {
+                    // NON-VAT INVOICE TOTALS (original logic)
+                    $discount = $rowinvoiceinfo["discount"];
+                    $net_total = $fulltot - $discount;
+
+                    $html .= '
                     <footer>
                         <div style="margin-top: -0.1cm;margin-right: -1.7cm; padding-right: 2.5cm;">
                             <table width="100%" height="100%" style="border-collapse: collapse;" border="0">
-                            ';
-                                $discount = $rowinvoiceinfo["discount"];
-                                $net_total = $fulltot - $discount;
-
-                                $html .= '
                                 <tr>
                                     <td align="right">' . number_format($fulltot, 2) . '</td>
                                 </tr>
@@ -197,6 +299,7 @@ $html = '
                             </table>
                         </div>
                     </footer>';
+                }
             }
             $html .= '  
         </div>
@@ -209,3 +312,4 @@ $dompdf->loadHtml($html);
 $dompdf->setPaper('21.5cm', '27.5cm', 'portrait');
 $dompdf->render();
 $dompdf->stream("Test.pdf", ["Attachment" => 0]);
+?>

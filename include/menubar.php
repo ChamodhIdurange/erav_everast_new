@@ -376,7 +376,18 @@ else if ($lastElement == 'rptdebtoragingdetails.php') {
     $statuscheck = checkprivilege($menuprivilegearray, 73, 3);
     $deletecheck = checkprivilege($menuprivilegearray, 73, 4);
 }
-
+else if ($lastElement == 'monthend.php') {
+    $addcheck    = checkprivilege($menuprivilegearray, 74, 1);
+    $editcheck   = checkprivilege($menuprivilegearray, 74, 2);
+    $statuscheck = checkprivilege($menuprivilegearray, 74, 3);
+    $deletecheck = checkprivilege($menuprivilegearray, 74, 4);
+}
+else if ($lastElement == 'vatreport.php') {
+    $addcheck    = checkprivilege($menuprivilegearray, 75, 1);
+    $editcheck   = checkprivilege($menuprivilegearray, 75, 2);
+    $statuscheck = checkprivilege($menuprivilegearray, 75, 3);
+    $deletecheck = checkprivilege($menuprivilegearray, 75, 4);
+}
 function checkprivilege($arraymenu, $menuID, $type)
 {
     foreach ($arraymenu as $array) {
@@ -528,6 +539,12 @@ function checkprivilege($arraymenu, $menuID, $type)
                     <?php } ?>
                 </nav>
             </div>
+            <?php }
+                    if (menucheck($menuprivilegearray, 74) == 1) { ?>
+            <!-- <a class="nav-link p-0 px-3 py-2" href="monthend.php">
+                <div class="nav-link-icon"><i data-feather="calendar"></i></div>
+                Month End
+            </a> -->
             <?php }
                     if (menucheck($menuprivilegearray, 40) == 1) { ?>
             <a class="nav-link p-0 px-3 py-2" href="vatinfo.php">
@@ -752,6 +769,9 @@ function checkprivilege($arraymenu, $menuID, $type)
                     <?php }
                                     if (menucheck($menuprivilegearray, 73) == 1) { ?>
                     <a class="nav-link p-0 px-3 py-1" href="rptdebtoragingdetails.php">Debtor Aging Report</a>
+                    <?php }
+                                    if (menucheck($menuprivilegearray, 75) == 1) { ?>
+                    <a class="nav-link p-0 px-3 py-1" href="vatreport.php">VAT Report</a>
                     <?php } ?>
                 </nav>
             </div>

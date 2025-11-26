@@ -1,8 +1,16 @@
-
 <?php 
 require_once('../connection/db.php');
 
 $paymentinoiceID=$_POST['paymentinoiceID'];
+
+// Get tax rate
+$taxQuery = "SELECT `rate` FROM `tbl_tax` LIMIT 1";
+$taxResult = $conn->query($taxQuery);
+$tax = 0;
+if ($taxResult && $taxResult->num_rows > 0) {
+    $taxRow = $taxResult->fetch_assoc();
+    $tax = $taxRow['rate'];
+}
 
 $sqlpaymentdetail="SELECT * FROM `tbl_invoice_payment_has_tbl_invoice` WHERE `tbl_invoice_payment_idtbl_invoice_payment`='$paymentinoiceID'";
 $resultpaymentdetail=$conn->query($sqlpaymentdetail);
@@ -53,15 +61,89 @@ $resultpaymentbank=$conn->query($sqlpaymentbank);
                     </tr>
                 </thead>
                 <tbody>
-                    <?php $i=1;while($rowpaymentdetails=$resultpaymentdetail->fetch_assoc()){ ?>
+                    <?php 
+                    $i=1;
+                    $total_payment = 0;
+                    
+                    while($rowpaymentdetails=$resultpaymentdetail->fetch_assoc()){ 
+                        $invoiceID = $rowpaymentdetails['tbl_invoice_idtbl_invoice'];
+                        
+                        // Get invoice and customer order details
+                        $sqlInvoiceInfo = "
+                        SELECT 
+                            i.total,
+                            i.discount,
+                            i.nettotal,
+                            co.idtbl_customer_order,
+                            co.vat,
+                            co.podiscountpercentage,
+                            c.vat_num
+                        FROM tbl_invoice i
+                        LEFT JOIN tbl_customer_order co ON co.idtbl_customer_order = i.tbl_customer_order_idtbl_customer_order
+                        LEFT JOIN tbl_customer c ON c.idtbl_customer = i.tbl_customer_idtbl_customer
+                        WHERE i.idtbl_invoice = '$invoiceID' AND i.status = 1
+                        ";
+                        $resultInvoiceInfo = $conn->query($sqlInvoiceInfo);
+                        $rowinvoice = $resultInvoiceInfo->fetch_assoc();
+                        
+                        // Check if VAT customer
+                        $vat_num = isset($rowinvoice['vat_num']) ? trim($rowinvoice['vat_num']) : '';
+                        $isTaxCustomer = !empty($vat_num);
+                        $actualvat = isset($rowinvoice['vat']) ? $rowinvoice['vat'] : $tax;
+                        
+                        $invoice_amount = 0;
+                        $discount_amount = 0;
+                        $payment_amount = 0;
+                        
+                        if($isTaxCustomer){
+                            // Get invoice detail for VAT calculations
+                            $recordID = $rowinvoice['idtbl_customer_order'];
+                            $sqlinvoicedetail = "
+                            SELECT 
+                                `tbl_customer_order_detail`.`qty`,
+                                `tbl_customer_order_detail`.`saleprice`,
+                                `tbl_customer_order_detail`.`discount`
+                            FROM `tbl_customer_order_detail`
+                            WHERE `tbl_customer_order_detail`.`tbl_customer_order_idtbl_customer_order`='$recordID' 
+                              AND `tbl_customer_order_detail`.`status`=1
+                            ";
+                            $resultinvoicedetail = $conn->query($sqlinvoicedetail);
+                            
+                            $fulltot = 0;
+                            while ($rowinvoicedetail = $resultinvoicedetail->fetch_assoc()) {
+                                $qtyValue = $rowinvoicedetail['qty'];
+                                $base_price = $rowinvoicedetail['saleprice'] / (1 + ($actualvat / 100));
+                                $base_discount = $rowinvoicedetail['discount'] / (1 + ($actualvat / 100));
+                                $line_total_base = ($qtyValue * $base_price) - $base_discount;
+                                $fulltot += $line_total_base;
+                            }
+                            
+                            // Calculate amounts for VAT customer
+                            $subtotal_before_discount = $fulltot;
+                            $po_discount_amount = $subtotal_before_discount * ($rowinvoice["podiscountpercentage"] / 100);
+                            $subtotal_after_po_discount = $subtotal_before_discount - $po_discount_amount;
+                            $vat_amount = $subtotal_before_discount * ($actualvat / 100);
+                            $grand_total = $subtotal_after_po_discount + $vat_amount;
+                            
+                            // For display
+                            $invoice_amount = $subtotal_before_discount + $vat_amount; // Total with VAT before discount
+                            $discount_amount = $po_discount_amount;
+                            $payment_amount = $grand_total;
+                        } else {
+                            // Non-VAT customer
+                            $invoice_amount = $rowinvoice['total'];
+                            $discount_amount = $rowpaymentdetails['discount'];
+                            $payment_amount = $invoice_amount - $discount_amount;
+                        }
+                        
+                        $total_payment += $payment_amount;
+                    ?>
                     <tr>
                         <td><?php echo $i ?></td>
-                        <td><?php echo 'INV-'.$rowpaymentdetails['tbl_invoice_idtbl_invoice']; ?></td>
-                        <td class="text-right">
-                            <?php $invoiceID=$rowpaymentdetails['tbl_invoice_idtbl_invoice']; $sqlinvoice="SELECT `total` FROM `tbl_invoice` WHERE `idtbl_invoice`='$invoiceID' AND `status`=1"; $resultinvoice=$conn->query($sqlinvoice); $rowinvoice=$resultinvoice->fetch_assoc(); echo number_format($rowinvoice['total'], 2); ?>
-                        </td>
-                        <td class="text-right"><?php  echo number_format($rowpaymentdetails['discount'],2); ?></td>
-                        <td class="text-right"><?php  $paymentdone = $rowinvoice['total'] - $rowpaymentdetails['discount']; echo number_format($paymentdone,2); ?></td>
+                        <td><?php echo 'INV-'.$invoiceID; ?></td>
+                        <td class="text-right"><?php echo number_format($invoice_amount, 2); ?></td>
+                        <td class="text-right"><?php echo number_format($discount_amount, 2); ?></td>
+                        <td class="text-right"><?php echo number_format($payment_amount, 2); ?></td>
                     </tr>
                     <?php $i++;} ?>
                 </tbody>
