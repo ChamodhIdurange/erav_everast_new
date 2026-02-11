@@ -5,7 +5,7 @@ date_default_timezone_set(TIMEZONE);
 $servername = "localhost";
 $username = "root";
 $password = "";
-$databse = "sk_marketing";
+$databse = "erav_everast";
 
 // Create connection
 $conn = mysqli_connect($servername, $username, $password, $databse);

@@ -5,6 +5,14 @@ if (!isset($_SESSION['userid'])) {
 }
 require_once('../connection/db.php');
 
+$taxQuery = "SELECT `rate` FROM `tbl_tax` LIMIT 1";
+$taxResult = $conn->query($taxQuery);
+$tax = 0;
+if ($taxResult && $taxResult->num_rows > 0) {
+    $taxRow = $taxResult->fetch_assoc();
+    $tax = $taxRow['rate'];
+}
+
 $userID = $_SESSION['userid'];
 $today = date('Y-m-d');
 
@@ -27,6 +35,23 @@ $locationId = null;
 $customerId = null;
 
 $fullDiscount = $discount + $podiscountAmount;
+
+$taxcus = "SELECT vat_num FROM tbl_customer WHERE idtbl_customer = '$customer'";
+$taxcusresult = $conn->query($taxcus);
+$taxcusrow = $taxcusresult->fetch_assoc();
+
+if($taxcusrow['vat_num'] != ''){
+    $tax = $tax;
+}else{
+    $tax = 0;
+}
+
+if($taxcusrow['vat_num'] != ''){
+    $tax = $tax;
+}else{
+    $tax = 0;
+}
+
 
 if ($acceptanceType == 1) {
     $updatePoValues = "UPDATE  `tbl_customer_order` SET `date`='$today', `podiscount`='$podiscountAmount', `podiscountpercentage`='$podiscountPrecentage', `discount`='$discount', `nettotal`='$nettotal', `total`='$total', `confrimuser`='$userID', `remark`='$remarkVal' WHERE `idtbl_customer_order`='$poID'";

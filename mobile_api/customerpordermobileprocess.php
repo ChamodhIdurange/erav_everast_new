@@ -1,6 +1,17 @@
 <?php 
 session_start();
 require_once('../connection/db.php');//die('bc');
+
+
+$taxQuery = "SELECT `rate` FROM `tbl_tax` LIMIT 1";
+$taxResult = $conn->query($taxQuery);
+$tax = 0;
+if ($taxResult && $taxResult->num_rows > 0) {
+    $taxRow = $taxResult->fetch_assoc();
+    $tax = $taxRow['rate'];
+}
+
+
 $userID=$_POST['userID'];
 
 $orderdate=$_POST['orderdate'];
@@ -25,6 +36,16 @@ $month=date('n');
 $query = "SELECT MAX(cuspono) AS max_id FROM tbl_customer_order WHERE cuspono LIKE 'CP/" . date('y/m/') . "%'";
 $result = $conn->query($query);
 
+$taxcus = "SELECT vat_num FROM tbl_customer WHERE idtbl_customer = '$customer'";
+$taxcusresult = $conn->query($taxcus);
+$taxcusrow = $taxcusresult->fetch_assoc();
+
+if($taxcusrow['vat_num'] != ''){
+    $tax_rate = $tax;
+}else{
+    $tax_rate = 0;
+}
+
 if ($result->num_rows > 0) {
     $row = $result->fetch_assoc();
     if ($row['max_id']) {
@@ -43,12 +64,12 @@ $dateformat = date('y/m/');
 $cuspono = 'CP/' . $dateformat . $next_id_padded;
 
 
-$insretorder = "INSERT INTO `tbl_customer_order`(`cuspono`, `date`, `total`, `discount`, `podiscount`, `vat`, `nettotal`, `remark`, `vatpre`, `status`, `insertdatetime`, `tbl_user_idtbl_user`, `tbl_area_idtbl_area`, `tbl_employee_idtbl_employee`, `tbl_locations_idtbl_locations`, `tbl_customer_idtbl_customer`) VALUES ('$cuspono', '$orderdate','$total','$discount', '$podiscount', '0', '$nettotal', '$remark', '0','1', '$updatedatetime', '$userID', '$area', '$repname', '$location' , '$customer')";
+$insretorder = "INSERT INTO `tbl_customer_order`(`cuspono`, `date`, `total`, `discount`, `podiscount`, `vat`, `nettotal`, `remark`, `vatpre`, `status`, `insertdatetime`, `tbl_user_idtbl_user`, `tbl_area_idtbl_area`, `tbl_employee_idtbl_employee`, `tbl_locations_idtbl_locations`, `tbl_customer_idtbl_customer`) VALUES ('$cuspono', '$orderdate','$total','$discount', '$podiscount', '$tax_rate', '$nettotal', '$remark', '0','1', '$updatedatetime', '$userID', '$area', '$repname', '$location' , '$customer')";
 
     if ($conn->query($insretorder) == true) {
         $orderID = $conn->insert_id;
 
-        $insretoriginalorder = "INSERT INTO `tbl_original_customer_order`(`cuspono`, `date`, `total`, `discount`, `podiscount`, `vat`, `nettotal`, `remark`, `vatpre`, `status`, `insertdatetime`, `tbl_user_idtbl_user`, `tbl_area_idtbl_area`, `tbl_employee_idtbl_employee`, `tbl_locations_idtbl_locations`, `tbl_customer_idtbl_customer`, `tbl_customer_order_idtblcustomer_order`) VALUES ('$cuspono', '$orderdate','$total','$discount', '$podiscount', '0', '$nettotal', '$remark', '0','1', '$updatedatetime', '$userID', '$area', '$repname', '$location' , '$customer', '$orderID')";
+        $insretoriginalorder = "INSERT INTO `tbl_original_customer_order`(`cuspono`, `date`, `total`, `discount`, `podiscount`, `vat`, `nettotal`, `remark`, `vatpre`, `status`, `insertdatetime`, `tbl_user_idtbl_user`, `tbl_area_idtbl_area`, `tbl_employee_idtbl_employee`, `tbl_locations_idtbl_locations`, `tbl_customer_idtbl_customer`, `tbl_customer_order_idtblcustomer_order`) VALUES ('$cuspono', '$orderdate','$total','$discount', '$podiscount', '$tax_rate', '$nettotal', '$remark', '0','1', '$updatedatetime', '$userID', '$area', '$repname', '$location' , '$customer', '$orderID')";
         $conn->query($insretoriginalorder);
         $originalOrderID = $conn->insert_id;
 

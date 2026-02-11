@@ -2,7 +2,7 @@
 $DB_HOST = "localhost";
 $DB_USER = "root";
 $DB_PASSWORD = "";
-$DB_NAME = "sk_marketing";
+$DB_NAME = "erav_everast";
 
 // $DB_NAME = "erav_connectswitches";
 // $DB_USER = "root";
